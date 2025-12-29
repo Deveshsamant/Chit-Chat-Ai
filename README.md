@@ -5,7 +5,6 @@
 Designed for developers, multitaskers, and sci-fi enthusiasts, it features a sleek "Iron Man" style HUD interface.
 
 ![Chit Chat UI](ui.png) 
-*(Add a real screenshot here!)*
 
 ## 🚀 Features
 
