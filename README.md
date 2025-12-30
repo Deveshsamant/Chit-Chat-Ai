@@ -14,6 +14,8 @@ Designed for developers, multitaskers, and sci-fi enthusiasts, it features a sle
     *   **Fast Mode (1.5B)**: Powered by `Qwen2.5-1.5B-Instruct` for quick, conversational speed.
     *   **Dynamic Switching**: Toggle between models instantly with a single click to balance speed vs. intelligence.
 *   **🖥️ Transparent Overlay UI**: A frameless, semi-transparent window that stays on top of your work but lets you click through (interactive parts only).
+*   **🛡️ Screen Capture Protection**: The application window is **excluded** from screen recordings and screen shares (OBS, Discord, Zoom, etc.), ensuring your privacy.
+*   **🎙️ Smart Audio Input**: Automatically detects and prioritizes your default microphone (wireless headsets, wired mics, or built-in inputs).
 *   **🕒 History & Live Modes**: Switch between a focused "Live View" (current Q&A) and a full "History View" of your session.
 *   **🔒 100% Local Privacy**: All models run **locally** on your GPU. No data is sent to the cloud.
 *   **👨‍💻 Developer Profile**: Integrated credits and social links.

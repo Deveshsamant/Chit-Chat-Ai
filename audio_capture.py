@@ -14,33 +14,16 @@ class AudioCapture:
         self.mic = self._get_loopback_mic()
 
     def _get_loopback_mic(self):
-        # improved loopback detection
+        # Prioritize Default Microphone for Voice Input
         try:
-            mics = sc.all_microphones(include_loopback=True)
-            
-            # 1. Priority: "Speakers" or "Headphones" loopback (Wasapi Loopback)
-            # This is usually the best quality and what we saw working in the test (Index 0)
-            for mic in mics:
-                if mic.isloopback and ("Speakers" in mic.name or "Headphones" in mic.name):
-                    print(f"[Audio] Selected Speaker Loopback: {mic.name}")
-                    return mic
-
-            # 2. Priority: Explicit "Stereo Mix" (Fallback if speakers not found)
-            for mic in mics:
-                if "Stereo Mix" in mic.name:
-                    print(f"[Audio] Selected Stereo Mix: {mic.name}")
-                    return mic
-            
-            # 3. Priority: Any Loopback device
-            for mic in mics:
-                if mic.isloopback:
-                    print(f"[Audio] Selected Loopback: {mic.name}")
-                    return mic
-            
-            # 4. Fallback: Default mic
+            # 1. Priority: Default Microphone (System Default)
+            # This handles Bluetooth, Wired, and Built-in mics automatically based on Windows settings.
             default = sc.default_microphone()
-            print(f"[Audio] Fallback to Default Mic: {default.name}")
+            print(f"[Audio] Selected Default Mic: {default.name}")
             return default
+            
+            # Legacy loopback logic (commented out or moved to fallback if needed, 
+            # but user specifically asked for voice input from headphones)
             
         except Exception as e:
             print(f"[Audio] Error finding microphone: {e}")

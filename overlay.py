@@ -3,6 +3,8 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QLabel, QVBoxLayout,
 from PyQt6.QtCore import Qt, QPoint, pyqtSignal, QUrl, QSize
 from PyQt6.QtGui import QFont, QDesktopServices, QPixmap, QPainter, QPainterPath, QCursor, QIcon
 import os
+import ctypes
+from ctypes import wintypes
 
 class DeveloperPopup(QDialog):
     def __init__(self, parent=None):
@@ -144,6 +146,18 @@ class TransparentOverlay(QMainWindow):
             Qt.WindowType.WindowStaysOnTopHint
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+
+        # Prevent screen capture
+        try:
+            # WDA_EXCLUDEFROMCAPTURE = 0x00000011
+            hwnd = int(self.winId())
+            result = ctypes.windll.user32.SetWindowDisplayAffinity(hwnd, 0x00000011)
+            if result == 0:
+                print("Warning: SetWindowDisplayAffinity failed.")
+            else:
+                print("Screen capture protection enabled.")
+        except Exception as e:
+            print(f"Error setting display affinity: {e}")
         
         # Geometry: Right side of the screen
         screen = QApplication.primaryScreen().geometry()
