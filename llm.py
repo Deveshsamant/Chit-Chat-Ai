@@ -1,5 +1,6 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
+import time
 
 class LLM:
     def __init__(self, model_path=r"local_models\Qwen2.5-Coder-3B-Instruct"):
@@ -37,20 +38,31 @@ class LLM:
         
         model_inputs = self.tokenizer([text], return_tensors="pt").to(self.device)
 
-        # Generate response (Limited to 256 for speed)
+        print(f"[LLM] Generating response on {self.device}...")
+        start_time = time.time()
+
+        # Generate response (Limited to 100 for faster debug feedback)
         generated_ids = self.model.generate(
             model_inputs.input_ids,
-            max_new_tokens=256,
+            max_new_tokens=100,
             do_sample=True,
             temperature=0.7,
-            pad_token_id=self.tokenizer.eos_token_id # Fix attention mask warning
+            attention_mask=model_inputs.attention_mask, # Explicitly pass attention mask
+            pad_token_id=self.tokenizer.eos_token_id
         )
+        
+        end_time = time.time()
+        duration = end_time - start_time
         
         generated_ids = [
             output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
         ]
 
         response = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+        
+        num_tokens = len(generated_ids[0])
+        tps = num_tokens / duration if duration > 0 else 0
+        print(f"[LLM] generated {num_tokens} tokens in {duration:.2f}s ({tps:.2f} t/s)")
         
         self.history.append({"role": "assistant", "content": response})
         return response
