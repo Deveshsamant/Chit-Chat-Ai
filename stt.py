@@ -1,35 +1,36 @@
-import whisper
 import numpy as np
 import torch
 import os
-
-# Add local ffmpeg to path
-ffmpeg_path = os.path.abspath(os.path.join(os.getcwd(), "ffmpeg", "bin"))
-if os.path.exists(ffmpeg_path):
-    os.environ["PATH"] += os.pathsep + ffmpeg_path
+from faster_whisper import WhisperModel
 
 class SpeechToText:
     def __init__(self, model_size="base"):
-        print(f"Loading Whisper model: {model_size}...")
+        # Map "tiny" to "base" if user passed tiny, or keep as is.
+        # Recommendation: Use "base" or "small" with faster-whisper for speed+accuracy.
+        if model_size == "tiny":
+            model_size = "base" # Upgrade to base automatically
+
+        print(f"Loading Faster-Whisper model: {model_size}...")
         device = "cuda" if torch.cuda.is_available() else "cpu"
+        compute_type = "float16" if device == "cuda" else "int8"
         
         # Local model path
-        local_path = os.path.join(os.getcwd(), "local_models", "whisper")
+        local_path = os.path.join(os.getcwd(), "local_models", "faster_whisper_cache")
         if not os.path.exists(local_path):
             os.makedirs(local_path)
             
-        self.model = whisper.load_model(model_size, device=device, download_root=local_path)
-        print(f"Whisper model loaded on {device}")
+        self.model = WhisperModel(model_size, device=device, compute_type=compute_type, download_root=local_path)
+        print(f"Faster-Whisper model loaded on {device} ({compute_type})")
 
     def transcribe(self, audio_data):
         # audio_data: numpy array of float32, mono
         
-        # Whisper expects raw audio or 30s chunks.
-        # It handles normalization internally.
-        
-        # Ensure it's float32
+        # faster-whisper expects float32
         if audio_data.dtype != np.float32:
             audio_data = audio_data.astype(np.float32)
 
-        result = self.model.transcribe(audio_data, fp16=(self.model.device.type == "cuda"))
-        return result["text"].strip()
+        segments, info = self.model.transcribe(audio_data, beam_size=5)
+        
+        # Combine all segments
+        text = " ".join([segment.text for segment in segments]).strip()
+        return text

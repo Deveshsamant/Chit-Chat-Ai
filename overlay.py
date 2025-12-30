@@ -230,14 +230,7 @@ class TransparentOverlay(QMainWindow):
         self.btn_history.clicked.connect(self.toggle_history)
         self.title_bar_layout.addWidget(self.btn_history)
 
-        # Model Toggle (3B vs 1.5B)
-        self.current_model = "3B"
-        self.btn_model = QPushButton("🧠 3B")
-        self.btn_model.setFixedSize(60, 30)
-        self.btn_model.setStyleSheet(btn_style)
-        self.btn_model.setToolTip("Switch Model (Smart vs Fast)")
-        self.btn_model.clicked.connect(self.toggle_model)
-        self.title_bar_layout.addWidget(self.btn_model)
+
 
         # Developer Profile
         self.btn_dev = QPushButton("👨‍💻")
@@ -333,15 +326,7 @@ class TransparentOverlay(QMainWindow):
             self.stacked_layout.setCurrentIndex(0)
             self.title_label.setText("Chit Chat AI")
 
-    def toggle_model(self):
-        if self.current_model == "3B":
-            self.current_model = "1.5B"
-            self.btn_model.setText("⚡ 1.5B")
-            self.request_model_switch.emit("1.5B")
-        else:
-            self.current_model = "3B"
-            self.btn_model.setText("🧠 3B")
-            self.request_model_switch.emit("3B")
+
 
     # --- Window Dragging Logic ---
     def mousePressEvent(self, event):

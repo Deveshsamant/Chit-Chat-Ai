@@ -21,10 +21,9 @@ class Worker(QObject):
 
     def handle_model_switch(self, model_type):
         print(f"Worker received switch request: {model_type}")
-        if model_type == "1.5B":
-            self.model_switch_requested = r"local_models\Qwen2.5-1.5B-Instruct"
-        else:
-            self.model_switch_requested = r"local_models\Qwen2.5-Coder-3B-Instruct"
+        # Model switching disabled as we are using a single optimized GGUF model
+        print("Model switching is currently disabled for GGUF optimization.")
+        self.model_switch_requested = None
 
     def run(self):
         # Initialize components
@@ -33,10 +32,11 @@ class Worker(QObject):
         try:
             self.audio_capture = AudioCapture()
             self.update_status.emit("Loading Whisper...")
-            self.stt = SpeechToText(model_size="base")
+            # Switch to tiny model for speed
+            self.stt = SpeechToText(model_size="tiny")
             self.update_status.emit("Loading Qwen (Coder 3B)...")
             # Point to the local folder where we are downloading the model
-            model_path = r"local_models\Qwen2.5-Coder-3B-Instruct"
+            model_path = r"local_models\qwen2.5-coder-3b-instruct-q4_k_m.gguf"
             self.llm = LLM(model_path)
         except Exception as e:
             self.update_status.emit(f"Error: {str(e)}")
@@ -86,10 +86,9 @@ class Worker(QObject):
                     silence_frames += 1
                     audio_buffer.append(chunk)
                     
-                    # Silence duration to trigger processing (e.g., 1.5 seconds)
-                    # changing 1.5s to ~50 frames assuming block_size=1024 and SR=16000 (1024/16000 = ~0.064s)
-                    # 1.5 / 0.064 ~= 23 frames
-                    if silence_frames > 25: 
+                    # Silence duration to trigger processing (Reduced for faster response)
+                    # changing 1.5s to ~0.7s (12 frames)
+                    if silence_frames > 12: 
                         self.process_audio(np.concatenate(audio_buffer))
                         audio_buffer = []
                         is_speaking = False

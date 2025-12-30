@@ -8,25 +8,23 @@ Designed for developers, multitaskers, and sci-fi enthusiasts, it features a sle
 
 ## 🚀 Features
 
-*   **🎙️ Real-time Speech-to-Text**: Uses OpenAI's **Whisper** model (running locally) to capture your voice or system audio with high accuracy.
-*   **🧠 Dual AI Brains**:
-    *   **Smart Mode (3B)**: Powered by `Qwen2.5-Coder-3B-Instruct` for coding, logic, and complex reasoning.
-    *   **Fast Mode (1.5B)**: Powered by `Qwen2.5-1.5B-Instruct` for quick, conversational speed.
-    *   **Dynamic Switching**: Toggle between models instantly with a single click to balance speed vs. intelligence.
-*   **🖥️ Transparent Overlay UI**: A frameless, semi-transparent window that stays on top of your work but lets you click through (interactive parts only).
-*   **🛡️ Screen Capture Protection**: The application window is **excluded** from screen recordings and screen shares (OBS, Discord, Zoom, etc.), ensuring your privacy.
-*   **🎙️ Smart Audio Input**: Automatically detects and prioritizes your default microphone (wireless headsets, wired mics, or built-in inputs).
+*   **⚡ Ultra-Fast Local Engine**: Powered by **GGUF** models (`llama.cpp`) for extreme performance on consumer GPUs.
+    *   **Model**: `Qwen2.5-Coder-3B-Instruct` (Quantized to 4-bit for speed/efficiency balance).
+*   **🎙️ Real-time Speech-to-Text**: Uses **Faster-Whisper** (CTranslate2 backend) for lightning-fast, high-accuracy transcription.
+*   **🖥️ Transparent Overlay UI**: A frameless, semi-transparent window that stays on top of your work.
+*   **🛡️ Screen Capture Protection**: The application window is exclusion-ready for screen recordings.
+*   **🎙️ Smart Audio Input**: Automatically detects speech (VAD) and filters background noise.
 *   **🕒 History & Live Modes**: Switch between a focused "Live View" (current Q&A) and a full "History View" of your session.
-*   **🔒 100% Local Privacy**: All models run **locally** on your GPU. No data is sent to the cloud.
+*   **🔒 100% Local Privacy**: All models run **locally**. No data is sent to the cloud.
 *   **👨‍💻 Developer Profile**: Integrated credits and social links.
 
 ## 🛠️ Installation
 
 ### Prerequisites
 *   **OS**: Windows 10/11
-*   **GPU**: NVIDIA GPU with CUDA support (Recommended: 6GB+ VRAM for 3B model, 4GB+ for 1.5B).
+*   **GPU**: NVIDIA GPU with CUDA support (Recommended).
 *   **Python**: 3.10+
-*   **FFmpeg**: Must be installed and added to PATH (or let the app handle it).
+*   **FFmpeg**: Must be in PATH for audio processing.
 
 ### Step 1: Clone the Repository
 ```bash
@@ -42,38 +40,31 @@ python -m venv venv
 
 ### Step 3: Install Dependencies
 ```bash
+# Install PyTorch with CUDA support
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+# Install project requirements
 pip install -r requirements.txt
 ```
-*(Note: Create a `requirements.txt` based on your env, e.g., `transformers`, `accelerate`, `PyQt6`, `openai-whisper`, `soundcard`, `numpy`)*
+*Required packages include: `llama-cpp-python`, `faster-whisper`, `PyQt6`, `soundcard`, `numpy`.*
 
-### Step 4: Download Models
-Run the included script to automatically download all necessary models (Qwen 3B, Qwen 1.5B, Whisper) to the `local_models/` directory.
-```bash
-python download_models.py
-```
-*This may take some time (~5-6 GB total).*
-
-### Step 5: Download Icons (Optional)
-To get the official social media icons for the profile:
-```bash
-python download_icons.py
-```
+### Step 4: Download Model
+1.  Create a folder named `local_models` in the project root.
+2.  Download `qwen2.5-coder-3b-instruct-q4_k_m.gguf` from Hugging Face.
+3.  Place it in `local_models/`.
 
 ## 🎮 Usage
 
 1.  **Run the Application**:
-    Double-click `run_chit_chat.bat` OR run:
     ```bash
     python main.py
     ```
 
 2.  **Controls**:
-    *   **Drag**: Click and drag anywhere on the window background to move it.
-    *   **🧠 / ⚡ Button**: Toggle between the "Smart" (3B) and "Fast" (1.5B) model.
-    *   **🕒 Button**: Toggle between Live Chat and History view.
+    *   **Drag**: Click and drag anywhere to move.
+    *   **🕒 Button**: Toggle History view.
     *   **👨‍💻 Button**: View Developer Profile.
-    *   **─ / □ / ✕**: Minimize, Maximize/Restore, Close.
+    *   **─ / □ / ✕**: Minimize, Maximize, Close.
 
 ## 🤝 Contributing
 Contributions are welcome! Please fork the repository and submit a pull request.
