@@ -6,17 +6,18 @@ Designed for developers, multitaskers, and sci-fi enthusiasts, it features a sle
 
 ![Chit Chat UI](ui.png) 
 
-## 🚀 Features
+## 🚀 Key Features
 
-*   **⚡ Ultra-Fast Local Engine**: Powered by **GGUF** models (`llama.cpp`) for extreme performance on consumer GPUs.
-    *   **Model**: `Qwen2.5-Coder-3B-Instruct` (Quantized to 4-bit for speed/efficiency balance).
-*   **🎙️ Real-time Speech-to-Text**: Uses **Faster-Whisper** (CTranslate2 backend) for lightning-fast, high-accuracy transcription.
-*   **🖥️ Transparent Overlay UI**: A frameless, semi-transparent window that stays on top of your work.
-*   **🛡️ Screen Capture Protection**: The application window is exclusion-ready for screen recordings.
-*   **🎙️ Smart Audio Input**: Automatically detects speech (VAD) and filters background noise.
-*   **🕒 History & Live Modes**: Switch between a focused "Live View" (current Q&A) and a full "History View" of your session.
-*   **🔒 100% Local Privacy**: All models run **locally**. No data is sent to the cloud.
-*   **👨‍💻 Developer Profile**: Integrated credits and social links.
+*   **⚡ Fast Interview Mode**: Optimized for rapid-fire Q&A with **token-by-token streaming**, giving you answers the moment they are generated.
+*   **🧠 Strict Code Generator**: Built for efficiency—provides **optimized code solutions** immediately with complexity analysis (Time/Space O-notation), cutting out all conversational fluff.
+*   **📝 Edit & Correct**: Misheard query? Instantly **edit your last spoken request** using the pencil icon to get the right answer without repeating yourself.
+*   **🎙️ Smart Speech Recognition**: Powered by **Faster-Whisper (Small Model)**, finetuned for better understanding of diverse accents (including Indian English) and fast detection.
+*   **🖥️ Transparent Overlay UI**:
+    *   **Frameless Design**: Floats seamlessly over your IDE or browser.
+    *   **Click-Through**: Drag via Title Bar only, ensuring you can select and copy text easily.
+    *   **Compact Mode**: Reduced font sizes and minimalist controls for less distraction.
+*   **🛡️ Privacy First**: Runs **100% Locally**. No data leaves your machine.
+*   **📦 Ready to Run**: Models are included via Git LFS—no manual downloads required!
 
 ## 🛠️ Installation
 
@@ -24,10 +25,14 @@ Designed for developers, multitaskers, and sci-fi enthusiasts, it features a sle
 *   **OS**: Windows 10/11
 *   **GPU**: NVIDIA GPU with CUDA support (Recommended).
 *   **Python**: 3.10+
-*   **FFmpeg**: Must be in PATH for audio processing.
+*   **Git LFS**: Required for downloading models.
 
-### Step 1: Clone the Repository
+### Step 1: Clone with LFS
 ```bash
+# Make sure you have Git LFS installed
+git lfs install
+
+# Clone the repository (this will download the ~2GB models automatically)
 git clone https://github.com/Deveshsamant/Chit-Chat-AI.git
 cd Chit-Chat-AI
 ```
@@ -46,12 +51,6 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 # Install project requirements
 pip install -r requirements.txt
 ```
-*Required packages include: `llama-cpp-python`, `faster-whisper`, `PyQt6`, `soundcard`, `numpy`.*
-
-### Step 4: Download Model
-1.  Create a folder named `local_models` in the project root.
-2.  Download `qwen2.5-coder-3b-instruct-q4_k_m.gguf` from Hugging Face.
-3.  Place it in `local_models/`.
 
 ## 🎮 Usage
 
@@ -61,7 +60,9 @@ pip install -r requirements.txt
     ```
 
 2.  **Controls**:
-    *   **Drag**: Click and drag anywhere to move.
+    *   **✏️ Edit**: Click the pencil icon to correct the last question.
+    *   **Drag**: Move the window by dragging the **Title Bar**.
+    *   **Right-Click**: Copy text from the chat window.
     *   **🕒 Button**: Toggle History view.
     *   **👨‍💻 Button**: View Developer Profile.
     *   **─ / □ / ✕**: Minimize, Maximize, Close.
