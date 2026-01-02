@@ -3,6 +3,7 @@ import torch
 import time
 import os
 import sys
+import threading
 
 # Force Absolute Path for finding local resources
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -71,10 +72,10 @@ class LLM:
                 raise e
 
         self.history = [
-            {"role": "system", "content": "You are a helpful AI assistant that listens to audio discussions and answers questions concisely."}
+            {"role": "system", "content": "You are a code-generator. \nRULES:\n1. NO conversational text. NO 'Certainly', 'Here is the code', 'Below is', NO conclusions.\n2. Start immediately with the code block.\n3. After the code, provide a Time and Space Complexity analysis.\n4. FORMAT:\n```language\n<code>\n```\n### Complexity\nTime: O(...)\nSpace: O(...)"}
         ]
 
-    def generate_response(self, user_text):
+    def generate_response(self, user_text, stream_callback=None):
         if not user_text:
             return ""
 
@@ -88,7 +89,7 @@ class LLM:
             # Llama.cpp generation
             stream = self.model.create_chat_completion(
                 messages=self.history,
-                max_tokens=200,
+                max_tokens=1024,
                 temperature=0.7,
                 stream=True
             )
@@ -99,10 +100,15 @@ class LLM:
                     token = chunk['choices'][0]['delta']['content']
                     print(token, end="", flush=True)
                     response += token
+                    if stream_callback:
+                        stream_callback(token)
             print() # Newline after stream
             
         else:
-            # Transformers generation
+            # Transformers generation (Streaming with TextIteratorStreamer)
+            from transformers import TextIteratorStreamer
+            streamer = TextIteratorStreamer(self.tokenizer, skip_prompt=True, skip_special_tokens=True)
+            
             text = self.tokenizer.apply_chat_template(
                 self.history,
                 tokenize=False,
@@ -111,22 +117,29 @@ class LLM:
             
             model_inputs = self.tokenizer([text], return_tensors="pt").to(self.device)
 
-            # Generate response
-            generated_ids = self.model.generate(
-                model_inputs.input_ids,
-                max_new_tokens=200,
+            generation_kwargs = dict(
+                inputs=model_inputs.input_ids,
+                max_new_tokens=1024,
                 do_sample=True,
                 temperature=0.7,
                 attention_mask=model_inputs.attention_mask,
-                pad_token_id=self.tokenizer.eos_token_id
+                pad_token_id=self.tokenizer.eos_token_id,
+                streamer=streamer
             )
-            
-            generated_ids = [
-                output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
-            ]
 
-            response = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
-            print(f"[LLM] Result: {response}")
+            # Run generation in a separate thread so we can iterate streamer
+            thread = threading.Thread(target=self.model.generate, kwargs=generation_kwargs)
+            thread.start()
+
+            print("[LLM] Stream: ", end="", flush=True)
+            for token in streamer:
+                print(token, end="", flush=True)
+                response += token
+                if stream_callback:
+                    stream_callback(token)
+            
+            thread.join()
+            print() # Newline
 
         end_time = time.time()
         duration = end_time - start_time

@@ -7,7 +7,7 @@ venv/
 .env
 
 # Models (Large files)
-local_models/
+# local_models/
 
 # IDEs
 .vscode/

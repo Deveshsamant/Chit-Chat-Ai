@@ -45,27 +45,16 @@ class LLMWorker(QObject):
                 # Process Question
                 self.status_update.emit("Thinking...")
                 
-                # Generate (Modified llm.py should support streaming, but we can capture prints or modify LLM later)
-                # For now, we assume LLM.generate_response prints tokens. 
-                # Ideally, we should update LLM class to yield tokens, but for now we run it.
-                # To support streaming to UI, we need to modify LLM.generate_response to callback.
-                # For this step, let's just run it and send final result, or implement a wrapper if possible.
+                # Define callback to emit tokens
+                def stream_callback(token):
+                    self.token_ready.emit(token)
+
+                # Generate with streaming
+                response = self.llm.generate_response(user_text, stream_callback=stream_callback)
                 
-                # IMPORTANT: We need streaming. 
-                # Let's wrap generate_stream in LLM class or access model directly?
-                # The generic LLM class handles logic. Let's use it.
-                
-                # We can update LLM class later to take a callback. 
-                # For now, let's just get the full response to prove concurrency, 
-                # or hack a token callback if needed.
-                # Actually, the user wants "answer fast", so streaming is key.
-                # Let's stick to full response for the structure first, or we modify LLM.
-                
-                # Let's add a callback hook to LLM in the next step if needed.
-                # For now, standard generation.
-                
-                response = self.llm.generate_response(user_text) # This currently prints to console
-                self.response_ready.emit(response)
+                # Signal completion (optional, or just ready)
+                self.response_ready.emit("") # Empty string or special signal to say "Done" if needed by UI to finalize
+                self.status_update.emit("Listening...")
                 self.status_update.emit("Listening...")
                 
                 self.queue.task_done()
@@ -130,7 +119,7 @@ class AudioWorker(QObject):
                 
                 # Live Preview & Question Detection Logic
                 preview_counter += 1
-                if preview_counter >= 10: # Check every ~0.6s
+                if preview_counter >= 5: # Check every ~0.3s (Faster detection)
                     preview_counter = 0
                     try:
                         temp_audio = np.concatenate(audio_buffer)
@@ -214,7 +203,49 @@ if __name__ == "__main__":
     
     llm_thread.started.connect(llm_worker.run)
     llm_worker.status_update.connect(window.update_status)
-    llm_worker.response_ready.connect(lambda text: window.append_message("Assistant", text))
+    
+    # Streaming Connections
+    # 1. Start of message (triggered when we send text? or we can signal it)
+    # Actually, we should trigger "Assistant" header when LLM starts thinking or first token arrives.
+    # Let's trigger it when LLM *starts* generating? 
+    # Or simpler: When token_ready fires, if it's the first one?
+    # Better: Add a signal in LLMWorker "generation_started"
+    
+    # For now, let's just use the fact that we can call start_streaming_message before adding question?
+    # Or let LLMWorker emit a signal.
+    
+    # We will just hook token_ready to stream_token, but we need to initialize the block.
+    # Let's hack it: user message is added -> we expect assistant response.
+    # Let's signal "Assistant" start when we send the question? No, that's too early.
+    
+    # Let's add a "start_generation" signal to LLMWorker logic above?
+    # Or just use the lambda for now to start it on first token?
+    # No, that's messy.
+    
+    # Let's just modify the response_ready connection to "end_streaming_message"
+    llm_worker.response_ready.connect(lambda x: window.end_streaming_message())
+    llm_worker.token_ready.connect(window.stream_token)
+    
+    # We need to call window.start_streaming_message("Assistant") sometime.
+    # LLMWorker should emit it.
+    # Let's add a line in LLMWorker.run before generate_response calls.
+    # Since I missed adding that signal in the previous step, I will use a partial fix here:
+    # Connect status_update: if status is "Thinking...", start assistant stream?
+    # No.
+    
+    # Let's just update LLMWorker class above to emit 'response_started' or similar?
+    # I can't easily edit class *definition* from here without re-writing the whole chunk.
+    # But I can modify the `run` method chunk I touched above.
+    
+    # Actually, I can use the existing `status_update` signal.
+    # If LLMWorker emits "Thinking...", we can trigger window.start_streaming_message("Assistant")
+    def handle_llm_status(status):
+        window.update_status(status)
+        if status == "Thinking...":
+            window.start_streaming_message("Assistant")
+            
+    llm_worker.status_update.disconnect() # Disconnect the direct one
+    llm_worker.status_update.connect(handle_llm_status)
     
     # 3. Connect Audio -> LLM
     # When Audio detects text, send it to LLM worker queue
@@ -230,7 +261,19 @@ if __name__ == "__main__":
         if len(text) > 2:
             llm_worker.add_question(text)
             
+            
+            
     audio_worker.text_ready.connect(bridge_audio_to_llm)
+
+    # 4. Connect Correction Signal
+    # Correction signal only sends 'text', but bridge expects 'role, text'.
+    # We need a separate handler or lambda.
+    def handle_correction(text):
+         # Treat correction as user input
+         if len(text) > 0:
+             llm_worker.add_question(text)
+             
+    window.correction_ready.connect(handle_correction)
 
     # Start Threads
     audio_thread.start()

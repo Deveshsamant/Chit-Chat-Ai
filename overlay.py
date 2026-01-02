@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QLabel, QVBoxLayout, 
-                             QWidget, QFrame, QHBoxLayout, QPushButton, QStackedLayout, QTextEdit, QDialog)
+                             QWidget, QFrame, QHBoxLayout, QPushButton, QStackedLayout, QTextEdit, QDialog, QInputDialog)
 from PyQt6.QtCore import Qt, QPoint, pyqtSignal, QUrl, QSize
-from PyQt6.QtGui import QFont, QDesktopServices, QPixmap, QPainter, QPainterPath, QCursor, QIcon
+from PyQt6.QtGui import QFont, QDesktopServices, QPixmap, QPainter, QPainterPath, QCursor, QIcon, QTextCursor
 import os
 import ctypes
 from ctypes import wintypes
@@ -133,6 +133,7 @@ class DeveloperPopup(QDialog):
 
 class TransparentOverlay(QMainWindow):
     request_model_switch = pyqtSignal(str) # "3B" or "1.5B"
+    correction_ready = pyqtSignal(str)     # Signal for corrected text
 
     def __init__(self):
         super().__init__()
@@ -240,6 +241,14 @@ class TransparentOverlay(QMainWindow):
         self.btn_dev.clicked.connect(self.show_developer_profile)
         self.title_bar_layout.addWidget(self.btn_dev)
 
+        # Edit Last Input (Correction)
+        self.btn_edit = QPushButton("✏️")
+        self.btn_edit.setFixedSize(30, 30)
+        self.btn_edit.setStyleSheet(btn_style)
+        self.btn_edit.setToolTip("Edit Last Input")
+        self.btn_edit.clicked.connect(self.edit_last_input)
+        self.title_bar_layout.addWidget(self.btn_edit)
+
         # Minimize
         self.btn_min = QPushButton("─")
         self.btn_min.setFixedSize(30, 30)
@@ -279,14 +288,22 @@ class TransparentOverlay(QMainWindow):
         # Page 1: Live Chat (Latest Only)
         self.page_live = QTextEdit()
         self.page_live.setReadOnly(True)
-        self.page_live.setFont(QFont("Segoe UI", 14)) # Larger font for live view
+        # Enable Robust Interaction
+        self.page_live.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.page_live.setContextMenuPolicy(Qt.ContextMenuPolicy.DefaultContextMenu) # standard right click
+        self.page_live.setTextInteractionFlags(Qt.TextInteractionFlag.TextEditorInteraction) # Full interaction minus editing (since readonly)
+        self.page_live.setFont(QFont("Segoe UI", 12)) # Reduced font size
         self.page_live.setStyleSheet(self._get_text_style())
         self.stacked_layout.addWidget(self.page_live)
         
         # Page 2: History (Full Log)
         self.page_history = QTextEdit()
         self.page_history.setReadOnly(True)
-        self.page_history.setFont(QFont("Segoe UI", 11))
+        # Enable Robust Interaction
+        self.page_history.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.page_history.setContextMenuPolicy(Qt.ContextMenuPolicy.DefaultContextMenu)
+        self.page_history.setTextInteractionFlags(Qt.TextInteractionFlag.TextEditorInteraction)
+        self.page_history.setFont(QFont("Segoe UI", 10))
         self.page_history.setStyleSheet(self._get_text_style())
         self.stacked_layout.addWidget(self.page_history)
         
@@ -331,13 +348,26 @@ class TransparentOverlay(QMainWindow):
     # --- Window Dragging Logic ---
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
-            self.oldPos = event.globalPosition().toPoint()
+            # ONLY drag if clicked on Title Bar
+            child = self.childAt(event.position().toPoint())
+            # We check if the child is part of title bar hierarchy
+            if child:
+                # Naive check: if child or its parent is the title bar
+                # Better: Check if the click is within the title bar geometry relative to window
+                if self.title_bar.geometry().contains(event.position().toPoint()):
+                    self.oldPos = event.globalPosition().toPoint()
+                    self.dragging = True
+                else:
+                    self.dragging = False
 
     def mouseMoveEvent(self, event):
-        if event.buttons() == Qt.MouseButton.LeftButton:
+        if event.buttons() == Qt.MouseButton.LeftButton and hasattr(self, 'dragging') and self.dragging:
             delta = QPoint(event.globalPosition().toPoint() - self.oldPos)
             self.move(self.x() + delta.x(), self.y() + delta.y())
             self.oldPos = event.globalPosition().toPoint()
+            
+    def mouseReleaseEvent(self, event):
+        self.dragging = False
             
     def toggle_maximize(self):
         if self.isMaximized():
@@ -356,6 +386,18 @@ class TransparentOverlay(QMainWindow):
         y = geo.y() + (geo.height() - 470) // 2
         dlg.move(x, y)
         dlg.exec()
+
+    def edit_last_input(self):
+        last_text = getattr(self, 'last_user_text', "")
+        if not last_text:
+            return
+
+        # Simple Input Dialog
+        from PyQt6.QtWidgets import QInputDialog, QLineEdit
+        text, ok = QInputDialog.getText(self, "Correct Input", "Edit last message:", text=last_text)
+        
+        if ok and text:
+            self.correction_ready.emit(text)
 
     def process_markdown(self, text):
         import re
@@ -376,7 +418,18 @@ class TransparentOverlay(QMainWindow):
                         content = rest
                 
                 content = html.escape(content)
-                code_html = f'<pre style="background-color: #2b2b2b; color: #a9b7c6; padding: 10px; border-radius: 5px; margin: 10px 0; font-family: Consolas, monospace;">{content}</pre>'
+                content = content.replace('\n', '<br>')
+                
+                # Use Table for Code Box (Qt supports this better than div/pre styling)
+                code_html = f"""
+                <table width="100%" cellpadding="10" cellspacing="0" style="background-color: #2b2b2b; color: #a9b7c6; border-radius: 5px; margin-top: 10px; margin-bottom: 10px;">
+                    <tr>
+                        <td>
+                            <pre style="font-family: Consolas, monospace; margin: 0;">{content}</pre>
+                        </td>
+                    </tr>
+                </table>
+                """
                 formatted_parts.append(code_html)
             else:
                 # Normal Text
@@ -389,6 +442,9 @@ class TransparentOverlay(QMainWindow):
 
     def append_message(self, role, message):
          if role == "User":
+             # Save for editing
+             self.last_user_text = message
+             
              color = "#00ff9d" # Greenish cyan
              bg = "rgba(0, 255, 157, 20)"
              formatted_msg = self.process_markdown(message)
@@ -420,6 +476,117 @@ class TransparentOverlay(QMainWindow):
          
          sb_hist = self.page_history.verticalScrollBar()
          sb_hist.setValue(sb_hist.maximum())
+
+    # --- Streaming Support ---
+    def start_streaming_message(self, role):
+        """Prepares the UI for a new incoming streamed message."""
+        if role == "User":
+             color = "#00ff9d" 
+             bg = "rgba(0, 255, 157, 20)"
+             self.page_live.clear() 
+        else:
+             color = "#00e5ff"
+             bg = "rgba(0, 229, 255, 20)"
+
+        self.current_stream_role = role
+        self.current_stream_content = ""
+        
+        # 1. Capture Start Positions for final replacement
+        # We need to know where this message started to replace it with the formatted block later.
+        self.live_start_pos = self.page_live.document().characterCount() - 1
+        self.hist_start_pos = self.page_history.document().characterCount() - 1
+        
+        # 2. Append Header (Visual only for now)
+        header_html = f'<div style="color: {color}; font-weight: bold; margin-top: 10px;">{role}</div>'
+        self.page_live.append(header_html)
+        self.page_history.append(header_html)
+        
+        # 3. Force "Normal White" style for the subsequent streaming text
+        # If we don't do this, it might inherit the Bold/Color of the header
+        from PyQt6.QtGui import QTextCharFormat, QColor, QFont
+        import hashlib
+        
+        fmt = QTextCharFormat()
+        fmt.setForeground(QColor("white"))
+        fmt.setFontWeight(QFont.Weight.Normal)
+        fmt.setFontPointSize(10) # Match normal size
+        
+        self.page_live.setCurrentCharFormat(fmt)
+        self.page_history.setCurrentCharFormat(fmt)
+
+    def stream_token(self, token):
+        """Appends a token to the current message."""
+        if not hasattr(self, 'current_stream_content'):
+            self.current_stream_content = ""
+            
+        self.current_stream_content += token
+        
+        # Update Live View (Fast)
+        self.page_live.moveCursor(QTextCursor.MoveOperation.End)
+        self.page_live.insertPlainText(token)
+        self.page_live.verticalScrollBar().setValue(self.page_live.verticalScrollBar().maximum())
+        
+        # Update History View
+        self.page_history.moveCursor(QTextCursor.MoveOperation.End)
+        self.page_history.insertPlainText(token)
+        self.page_history.verticalScrollBar().setValue(self.page_history.verticalScrollBar().maximum())
+
+    def end_streaming_message(self):
+        """Finalize the message by replacing raw text with formatted HTML (Bubbles + Code)."""
+        full_text = getattr(self, 'current_stream_content', "")
+        role = getattr(self, 'current_stream_role', "Assistant")
+        
+        # Save text for copying/editing
+        if role == "User":
+            self.last_user_text = full_text
+        else:
+            self.last_assistant_text = full_text
+
+        if not full_text:
+            return
+
+        # Helper to replace range with formatted message
+        def replace_range(text_edit, start_pos, new_html):
+            cursor = text_edit.textCursor()
+            cursor.setPosition(start_pos)
+            cursor.movePosition(QTextCursor.MoveOperation.End, QTextCursor.MoveMode.KeepAnchor)
+            cursor.removeSelectedText()
+            # Now append the nice formatted message
+            # But wait, append() adds to end. insertHtml inserts at cursor.
+            # Using insertHtml might be inline. 
+            # We want to use append_message logic but putting it HERE.
+            # actually append_message calculates the HTML.
+            
+            # Let's manually generate HTML and insert it.
+            # We use the LOGIC from append_message but we insert it.
+            
+            if role == "User":
+                 color = "#00ff9d" 
+                 bg = "rgba(0, 255, 157, 20)"
+            else:
+                 color = "#00e5ff"
+                 bg = "rgba(0, 229, 255, 20)"
+                 
+            formatted_msg = self.process_markdown(full_text)
+            
+            html_content = f"""
+             <div style="margin-bottom: 15px;">
+                <div style="color: {color}; font-weight: bold; font-size: 10pt; margin-bottom: 2px;">{role}</div>
+                <div style="background-color: {bg}; padding: 8px; border-radius: 10px; color: white;">{formatted_msg}</div>
+             </div>
+             """
+            
+            cursor.insertHtml(html_content)
+            
+            # Scroll to bottom
+            sb = text_edit.verticalScrollBar()
+            sb.setValue(sb.maximum())
+
+        # Apply to both
+        if hasattr(self, 'live_start_pos'):
+            replace_range(self.page_live, self.live_start_pos, full_text)
+        if hasattr(self, 'hist_start_pos'):
+            replace_range(self.page_history, self.hist_start_pos, full_text)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
